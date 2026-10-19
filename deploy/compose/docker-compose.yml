@@ -1,0 +1,152 @@
+name: cindy-middlewares
+
+# Cindy Server 开发环境统一中间件容器组
+# 启动：docker compose -p cindy-middlewares -f deploy/compose/docker-compose.yml up -d
+# 停止：docker compose -p cindy-middlewares -f deploy/compose/docker-compose.yml down
+# 清空数据：docker compose -p cindy-middlewares -f deploy/compose/docker-compose.yml down -v
+
+x-healthcheck-defaults: &healthcheck-defaults
+  interval: 10s
+  timeout: 5s
+  retries: 10
+  start_period: 20s
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    container_name: cindy-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: cindy
+      POSTGRES_PASSWORD: cindy_dev_password
+      POSTGRES_DB: cindy
+      TZ: UTC
+    ports:
+      - "5432:5432"
+    volumes:
+      - cindy_postgres_data:/var/lib/postgresql
+      - ./initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      <<: *healthcheck-defaults
+      test: ["CMD-SHELL", "pg_isready -U cindy -d cindy"]
+    networks: [cindy]
+
+  redis:
+    image: redis:8-alpine
+    container_name: cindy-redis
+    restart: unless-stopped
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --maxmemory
+      - 512mb
+      - --maxmemory-policy
+      - allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - cindy_redis_data:/data
+    healthcheck:
+      <<: *healthcheck-defaults
+      test: ["CMD", "redis-cli", "ping"]
+    networks: [cindy]
+
+  rustfs:
+    image: rustfs/rustfs:latest
+    container_name: cindy-rustfs
+    restart: unless-stopped
+    environment:
+      RUSTFS_ACCESS_KEY: cindy
+      RUSTFS_SECRET_KEY: cindy_dev_password
+      RUSTFS_VOLUMES: /data
+      RUSTFS_ADDRESS: 0.0.0.0:9000
+      RUSTFS_CONSOLE_ENABLE: "true"
+      RUSTFS_CONSOLE_ADDRESS: 0.0.0.0:9001
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - cindy_rustfs_data:/data
+    healthcheck:
+      <<: *healthcheck-defaults
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:9000/health"]
+    networks: [cindy]
+
+  coturn:
+    image: coturn/coturn:latest
+    container_name: cindy-coturn
+    restart: unless-stopped
+    command:
+      - -n
+      - --log-file=stdout
+      - --lt-cred-mech
+      - --fingerprint
+      - --realm=cindy.local
+      - --user=cindy:cindy_dev_password
+      - --listening-port=3478
+      - --min-port=49160
+      - --max-port=49200
+      - --no-cli
+    ports:
+      - "3478:3478/udp"
+      - "3478:3478/tcp"
+      - "49160-49200:49160-49200/udp"
+    networks: [cindy]
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: cindy-mailpit
+    restart: unless-stopped
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    networks: [cindy]
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: cindy-prometheus
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=7d
+      - --web.enable-lifecycle
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - cindy_prometheus_data:/prometheus
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks: [cindy]
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: cindy-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    ports:
+      - "3000:3000"
+    volumes:
+      - cindy_grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      - prometheus
+    networks: [cindy]
+
+volumes:
+  cindy_postgres_data:
+  cindy_redis_data:
+  cindy_rustfs_data:
+  cindy_prometheus_data:
+  cindy_grafana_data:
+
+networks:
+  cindy:
+    name: cindy-middlewares

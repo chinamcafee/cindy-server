@@ -1,0 +1,31 @@
+# Local secrets and runtime state
+.env
+.env.*
+!.env.example
+.keys/
+*.pem
+*.key
+
+# Build/runtime artifacts
+bin/
+worker
+dist/
+*.log
+*.out
+*.test
+*.prof
+*.pid
+coverage/
+tmp/
+cache/
+node_modules/
+
+# Local databases
+*.db
+*.sqlite
+*.sqlite3
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/

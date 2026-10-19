@@ -1,0 +1,15 @@
+{
+	local_certs
+}
+
+auth.cindy.local, chat.cindy.local, device-link.cindy.local,
+model-access.cindy.local, model-catalog.cindy.local, plugin.cindy.local,
+skill-hub.cindy.local, oss.cindy.local, voice.cindy.local,
+oauth-broker.cindy.local, github.cindy.local, heartbeat.cindy.local,
+mobile-update.cindy.local, admin-api.cindy.local {
+	reverse_proxy 127.0.0.1:19828
+}
+
+admin.cindy.local {
+	reverse_proxy 127.0.0.1:15900
+}
