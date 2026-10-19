@@ -60,7 +60,7 @@ type Config struct {
 	TurnURLs   []string `env:"CINDY_TURN_URLS" envSeparator:"," envDefault:"turn:127.0.0.1:3478?transport=udp"`
 
 	AdminBootstrapEmail    string `env:"CINDY_ADMIN_BOOTSTRAP_EMAIL" envDefault:"admin@cindy.local"`
-	AdminBootstrapPassword string `env:"CINDY_ADMIN_BOOTSTRAP_PASSWORD" envDefault:"ChangeMe!123"`
+	AdminBootstrapPassword string `env:"CINDY_ADMIN_BOOTSTRAP_PASSWORD"`
 
 	MetricsEnabled bool `env:"CINDY_METRICS_ENABLED" envDefault:"true"`
 
